@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pose Estimation</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+    <style>
+        #result-message {
+            display: none;
+        }
+
+        #result {
+            display: none;
+        }
+
+        #save-button {
+            display: none;
+        }
+
+        #loading-message {
+            display: none;
+        }
+
+        #footer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background-color: #f1f1f1;
+            text-align: center;
+            padding: 10px;
+            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        #ad {
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Upload Image for Pose Estimation</h1>
+    <input type="file" id="file-input">
+    <button onclick="uploadFile()">Upload</button>
+    <p id="loading-message">Processing...</p>
+    <h2>Result:</h2>
+    <p id="result-message">No image uploaded.</p>
+    <canvas id="result"></canvas>
+    <br>
+    <button id="save-button" onclick="saveImage()">Save Image</button>
+
+    <div id="footer">
+        <img id="ad" src="https://via.placeholder.com/728x90.png?text=Ad+Banner" alt="Advertisement">
+    </div>
+
+    <script>
+        let resultCanvas;
+
+        async function uploadFile() {
+            const fileInput = document.getElementById('file-input');
+            const file = fileInput.files[0];
+            const loadingMessage = document.getElementById('loading-message');
+            const resultMessage = document.getElementById('result-message');
+
+            if (!file) {
+                resultMessage.style.display = 'block';
+                return;
+            }
+
+            resultMessage.style.display = 'none';
+            loadingMessage.style.display = 'block';
+
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+            img.onload = async () => {
+                const canvas = document.getElementById('result');
+                const ctx = canvas.getContext('2d');
+
+                // Calculate scale factor to fit within 200px
+                const maxDimension = Math.max(img.width, img.height);
+                const scaleFactor = maxDimension > 200 ? 200 / maxDimension : 1;
+                const width = img.width * scaleFactor;
+                const height = img.height * scaleFactor;
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+
+                const detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet);
+                const poses = await detector.estimatePoses(img);
+
+                const keypoints = poses[0].keypoints;
+                const adjacentKeyPoints = poseDetection.util.getAdjacentPairs(poseDetection.SupportedModels.MoveNet);
+
+                // Draw lines between keypoints
+                adjacentKeyPoints.forEach(([i, j]) => {
+                    const kp1 = keypoints[i];
+                    const kp2 = keypoints[j];
+                    if (kp1.score > 0.5 && kp2.score > 0.5) {
+                        ctx.beginPath();
+                        ctx.moveTo(kp1.x * scaleFactor, kp1.y * scaleFactor);
+                        ctx.lineTo(kp2.x * scaleFactor, kp2.y * scaleFactor);
+                        ctx.strokeStyle = 'red';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                    }
+                });
+
+                // Draw keypoints
+                keypoints.forEach(keypoint => {
+                    if (keypoint.score > 0.5) {
+                        ctx.beginPath();
+                        ctx.arc(keypoint.x * scaleFactor, keypoint.y * scaleFactor, 5, 0, 2 * Math.PI);
+                        ctx.fillStyle = 'red';
+                        ctx.fill();
+                    }
+                });
+
+                loadingMessage.style.display = 'none';
+                document.getElementById('result').style.display = 'block';
+                document.getElementById('save-button').style.display = 'block';
+                resultCanvas = canvas;
+            };
+        }
+
+        function saveImage() {
+            const link = document.createElement('a');
+            link.href = resultCanvas.toDataURL('image/png');
+            link.download = 'pose_estimation_result.png';
+            link.click();
+        }
+    </script>
+</body>
+
+</html>
