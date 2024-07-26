@@ -81,7 +81,7 @@
 
                 // Calculate scale factor to fit within 200px
                 const maxDimension = Math.max(img.width, img.height);
-                const scaleFactor = maxDimension > 200 ? 200 / maxDimension : 1;
+                const scaleFactor = maxDimension > 400 ? 400 / maxDimension : 1;
                 const width = img.width * scaleFactor;
                 const height = img.height * scaleFactor;
                 canvas.width = width;
